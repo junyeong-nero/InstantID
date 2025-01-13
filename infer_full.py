@@ -11,6 +11,7 @@ from insightface.app import FaceAnalysis
 from pipeline_stable_diffusion_xl_instantid_full import StableDiffusionXLInstantIDPipeline, draw_kps
 
 from controlnet_aux import MidasDetector
+import argparse
 
 def convert_from_image_to_cv2(img: Image) -> np.ndarray:
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
@@ -39,8 +40,7 @@ def resize_img(input_image, max_side=1280, min_side=1024, size=None,
     return input_image
 
 
-if __name__ == "__main__":
-
+def main(args):
     # Load face encoder
     app = FaceAnalysis(name='antelopev2', root='./', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
     app.prepare(ctx_id=0, det_size=(640, 640))
@@ -72,10 +72,11 @@ if __name__ == "__main__":
     pipe.load_ip_adapter_instantid(face_adapter)
 
     # Infer setting
-    prompt = "analog film photo of a man. faded film, desaturated, 35mm photo, grainy, vignette, vintage, Kodachrome, Lomography, stained, highly detailed, found footage, masterpiece, best quality"
+    # prompt = "analog film photo of a man. faded film, desaturated, 35mm photo, grainy, vignette, vintage, Kodachrome, Lomography, stained, highly detailed, found footage, masterpiece, best quality"
+    prompt = "Detailed, realistic image of a person with a sad facial expression, showcasing emotional depth."
     n_prompt = "(lowres, low quality, worst quality:1.2), (text:1.2), watermark, painting, drawing, illustration, glitch, deformed, mutated, cross-eyed, ugly, disfigured (lowres, low quality, worst quality:1.2), (text:1.2), watermark, painting, drawing, illustration, glitch,deformed, mutated, cross-eyed, ugly, disfigured"
 
-    face_image = load_image("./examples/yann-lecun_resize.jpg")
+    face_image = load_image(args.source_img)
     face_image = resize_img(face_image)
 
     face_info = app.get(cv2.cvtColor(np.array(face_image), cv2.COLOR_RGB2BGR))
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     face_emb = face_info['embedding']
 
     # use another reference image
-    pose_image = load_image("./examples/poses/pose.jpg")
+    pose_image = load_image(args.target_img)
     pose_image = resize_img(pose_image)
 
     face_info = app.get(cv2.cvtColor(np.array(pose_image), cv2.COLOR_RGB2BGR))
@@ -115,5 +116,16 @@ if __name__ == "__main__":
         num_inference_steps=30,
         guidance_scale=5,
     ).images[0]
+            
+    image.save(args.output_img)
 
-    image.save('result.jpg')
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="InstantID")
+    parser.add_argument('--source_img', type=str, required=True, help='source image path')
+    parser.add_argument('--target_img', type=str, required=True, help='target image path')
+    parser.add_argument('--output_img', type=str, required=True, help='output image path')
+
+    args = parser.parse_args()
+    main(args)
